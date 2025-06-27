@@ -1,72 +1,56 @@
 import streamlit as st
-from sentence_transformers import SentenceTransformer
+from transformers import BertModel, BertTokenizer
+import torch
 from sklearn.metrics.pairwise import cosine_similarity
-import base64
 
 # ------------------------
-# Background Image (optional)
-# ------------------------
-def set_background(image_path):
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode()
-
-    css = f"""
-    <style>
-    .stApp {{
-        background-image: url("data:image/png;base64,{encoded_string}");
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
-# Call to the function below (comment or delete):
-set_background("assets/background.jpg")
-
-
-# ------------------------
-# Load model
+# Load BERT model/tokenizer
 # ------------------------
 @st.cache_resource
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
+def load_bert_model():
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    model = BertModel.from_pretrained('bert-base-uncased')
+    return tokenizer, model
 
-model = load_model()
+tokenizer, model = load_bert_model()
 
 # ------------------------
-# Knowledge base (QA pairs)
+# QA pairs (your chatbot's knowledge base)
 # ------------------------
 qa_pair = {
-    "What is your name?": "I am a chatbot powered by MiniLM!",
+    "What is your name?": "I am a chatbot powered by BERT!",
     "How are you?": "I'm just a bunch of code, but I'm doing great!",
-    "What is BERT?": "BERT stands for Bidirectional Encoder Representations from Transformers.",
+    "What is BERT?": "BERT stands for Bidirectional Encoder Representations from Transformers. It’s a powerful NLP model.",
     "Tell me a joke.": "Why don't programmers like nature? It has too many bugs.",
-    "What is data science": "Data Science involves extracting knowledge from data using statistics and machine learning.",
-    "What is your use": "I help answer your questions using sentence similarity and pre-trained models.",
-    "What is AI": "AI is the simulation of human intelligence in machines.",
-    "What is Microsoft Azure": "Azure is Microsoft’s cloud computing platform."
+    "What is data science": "Data Science is the study of analyzing data to find useful information...",
+    "What is your use": "A BERT-based chatbot uses the BERT model to understand and respond...",
+    "What is AI": "Artificial Intelligence (AI) is the ability of machines to simulate human intelligence...",
+    "What is Microsoft Azure": "Microsoft Azure is a cloud computing platform provided by Microsoft..."
 }
 
 # ------------------------
-# Precompute embeddings
+# Get BERT embedding
 # ------------------------
-@st.cache_resource
-def get_precomputed_embeddings():
-    return {q: model.encode(q, convert_to_numpy=True) for q in qa_pair}
-
-predefined_embeddings = get_precomputed_embeddings()
+def get_embedding(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1).numpy()
 
 # ------------------------
-# Chatbot logic
+# Precompute embeddings for questions
+# ------------------------
+predefined_embeddings = {q: get_embedding(q) for q in qa_pair}
+
+# ------------------------
+# Chatbot response logic
 # ------------------------
 def chatbot_response(user_input):
-    user_embedding = model.encode(user_input, convert_to_numpy=True)
+    user_embedding = get_embedding(user_input)
 
     similarities = {
-        q: cosine_similarity([user_embedding], [predefined_embeddings[q]])[0][0]
-        for q in qa_pair
+        question: cosine_similarity(user_embedding, predefined_embeddings[question])[0][0]
+        for question in qa_pair
     }
 
     best_match = max(similarities, key=similarities.get)
@@ -75,16 +59,18 @@ def chatbot_response(user_input):
     else:
         return "I'm not sure how to respond to that."
 
+# ------------------------
 # Streamlit UI
+# ------------------------
+st.title("🤖 BERT Chatbot")
+st.write("This is a BERT-powered chatbot built with Streamlit. Ask a question to get started.")
 
-st.title("🤖 MiniLM Chatbot (Fast BERT)")
-st.write("Ask a question about AI, data, or tech!")
+st.subheader("Ask me anything:")
 
-user_input = st.text_input("You:", placeholder="Type your question here...")
+user_input = st.text_input("You:", placeholder="Type your message here...")
 
 if user_input:
     response = chatbot_response(user_input)
     st.markdown(f"**Chatbot:** {response}")
 
 st.markdown("---")
-st.caption("Optimized with sentence-transformers for fast response 🚀")
