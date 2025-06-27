@@ -22,8 +22,9 @@ def set_background(image_path):
     """
     st.markdown(css, unsafe_allow_html=True)
 
-# ✅ Use relative path for GitHub/Streamlit Cloud
-set_background("assets/background.jpg")  # Optional
+# Call to the function below (comment or delete):
+set_background("assets/background.jpg")
+
 
 # ------------------------
 # Load model
