@@ -1,76 +1,62 @@
 import streamlit as st
-from transformers import BertModel, BertTokenizer
-import torch
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ------------------------
-# Load BERT model/tokenizer
+# Load fast MiniLM model
 # ------------------------
 @st.cache_resource
-def load_bert_model():
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
-    return tokenizer, model
+def load_model():
+    return SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
-tokenizer, model = load_bert_model()
+model = load_model()
 
 # ------------------------
-# QA pairs (your chatbot's knowledge base)
+# QA Knowledge Base
 # ------------------------
 qa_pair = {
-    "What is your name?": "I am a chatbot powered by BERT!",
+    "What is your name?": "I am a chatbot powered by MiniLM!",
     "How are you?": "I'm just a bunch of code, but I'm doing great!",
     "What is BERT?": "BERT stands for Bidirectional Encoder Representations from Transformers. It’s a powerful NLP model.",
     "Tell me a joke.": "Why don't programmers like nature? It has too many bugs.",
     "What is data science": "Data Science is the study of analyzing data to find useful information...",
-    "What is your use": "A BERT-based chatbot uses the BERT model to understand and respond...",
+    "What is your use": "A MiniLM-based chatbot uses sentence embeddings to understand and respond...",
     "What is AI": "Artificial Intelligence (AI) is the ability of machines to simulate human intelligence...",
     "What is Microsoft Azure": "Microsoft Azure is a cloud computing platform provided by Microsoft..."
 }
 
 # ------------------------
-# Get BERT embedding
+# Get embedding
 # ------------------------
 def get_embedding(text):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    return outputs.last_hidden_state.mean(dim=1).numpy()
+    return model.encode([text])
 
 # ------------------------
-# Precompute embeddings for questions
+# Precompute QA embeddings
 # ------------------------
-predefined_embeddings = {q: get_embedding(q) for q in qa_pair}
+precomputed = {q: get_embedding(q) for q in qa_pair}
 
 # ------------------------
-# Chatbot response logic
+# Chatbot Logic
 # ------------------------
 def chatbot_response(user_input):
     user_embedding = get_embedding(user_input)
-
-    similarities = {
-        question: cosine_similarity(user_embedding, predefined_embeddings[question])[0][0]
-        for question in qa_pair
+    scores = {
+        q: cosine_similarity(user_embedding, precomputed[q])[0][0]
+        for q in qa_pair
     }
-
-    best_match = max(similarities, key=similarities.get)
-    if similarities[best_match] > 0.5:
-        return qa_pair[best_match]
-    else:
-        return "I'm not sure how to respond to that."
+    best = max(scores, key=scores.get)
+    return qa_pair[best] if scores[best] > 0.5 else "I'm not sure how to respond to that."
 
 # ------------------------
 # Streamlit UI
 # ------------------------
-st.title("🤖 BERT Chatbot")
-st.write("This is a BERT-powered chatbot built with Streamlit. Ask a question to get started.")
+st.title("⚡ Fast MiniLM Chatbot")
+st.write("This chatbot uses the lightweight MiniLM model for quick and smart replies!")
 
 st.subheader("Ask me anything:")
-
 user_input = st.text_input("You:", placeholder="Type your message here...")
 
 if user_input:
-    response = chatbot_response(user_input)
-    st.markdown(f"**Chatbot:** {response}")
-
-st.markdown("---")
+    reply = chatbot_response(user_input)
+    st.markdown(f"**Chatbot:** {reply}")
