@@ -2,11 +2,12 @@ name: Deploy Fast Chatbot
 
 on:
   push:
-    branches: [ main ]  # runs when you push to main branch
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -14,12 +15,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: 3.10  # ✅ FIXED
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      - name: Run Streamlit app (optional)
+      - name: Run Streamlit app
         run: |
           streamlit run fast_chatbot.py
